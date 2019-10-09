@@ -3,12 +3,14 @@ package com.sukhinin;
 import com.sun.net.httpserver.HttpServer;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 public class Application {
     public static void main(String[] args) {
@@ -23,8 +25,16 @@ public class Application {
                 Counter counter = Counter.builder("app.heater.counter")
                         .tag("thread", threadName)
                         .register(registry);
+                Timer timer = Timer.builder("app.heater.timer")
+                        .tag("thread", threadName)
+                        .publishPercentiles(0.5, 0.95, 0.99)
+                        .register(registry);
+                long nanos = System.nanoTime();
                 while (true) {
+                    long now = System.nanoTime();
                     counter.increment();
+                    timer.record(now - nanos, TimeUnit.NANOSECONDS);
+                    nanos = now;
                 }
             });
             thread.setDaemon(true);
